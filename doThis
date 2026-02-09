@@ -1,0 +1,32 @@
+1) Cluster erstellen (GKE Standard + Autoscaler
+ bash gke/00-cluster-create.sh
+ bash gke/02-kubectl-connect.sh
+
+2. Node Pool (Worker Pool) erstellen
+bash gke/01-nodepool-create.sh
+
+3) Phasen ausführen
+bash scripts/apply-v1.sh
+bash scripts/apply-v2.sh
+bash scripts/apply-v3.sh
+bash scripts/apply-v4.sh
+bash scripts/apply-hpa.sh
+
+4) Beobachtungs-Commands (während der Demo)
+# Pods & Scheduling
+kubectl get pods -n hands-on -o wide
+kubectl describe pod -n hands-on <POD_NAME>
+
+Nodes (Worker)
+kubectl get nodes -o wide
+kubectl get nodes --show-labels | grep gke-nodepool
+
+Events
+kubectl get events -n hands-on --sort-by=.metadata.creationTimestamp
+
+
+5) Cleanup
+bash scripts/cleanup.sh
+bash gke/99-cluster-delete.sh
+
+
