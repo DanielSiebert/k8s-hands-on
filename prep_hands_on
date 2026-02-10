@@ -1,0 +1,20 @@
+#ENV VARS
+export PROJECT_ID=kubernetes-demo-486609
+export ZONE=europe-west1-b
+export CLUSTER_NAME=hands-on
+
+
+# Nach 1
+kubectl get pods -n hands-on -o wide
+kubectl get nodes --show-labels | grep gke-nodepool
+
+# Nach 2
+kubectl get pods -n hands-on -o wide
+kubectl delete deploy -n hands-on demo-v1 demo-v2 --ignore-not-found
+kubectl get pods -n hands-on
+
+#Nach 3
+kubectl delete deploy -n hands-on demo-v3 --ignore-not-found
+kubectl apply -f manifests/variants/40-deploy-v4-nodepool-placement.yaml
+kubectl get pods -n hands-on -o wide
+
