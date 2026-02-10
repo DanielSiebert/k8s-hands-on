@@ -1,10 +1,3 @@
-
----
-
-# GKE Scripts
-
-## `gke/00-cluster-create.sh`
-```bash
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -27,4 +20,3 @@ gcloud container clusters create "${CLUSTER_NAME}" \
   --max-nodes "3"
 
 echo "Done."
-
