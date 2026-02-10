@@ -28,3 +28,12 @@ Non-Goals:
 
 The manifests are intentionally kept simple and explicit to support learning and live demonstrations.
 
+## Environment Variables
+
+The following environment variables need to be exported before running the scripts:
+
+- `PROJECT_ID`: Your Google Cloud Project ID.
+- `ZONE`: The Google Cloud Zone where the GKE cluster will be created (e.g., `us-central1-c`).
+- `CLUSTER_NAME`: The name of your GKE cluster (e.g., `k8s-hands-on-cluster`).
+
+
