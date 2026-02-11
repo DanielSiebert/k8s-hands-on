@@ -33,7 +33,6 @@ data:
         add_header Content-Type text/plain;
       }
 
-      # tiny endpoint for easy LB demo (plain text)
       location = /whoami {
         return 200 "$hostname\n";
         add_header Content-Type text/plain;
@@ -71,6 +70,22 @@ spec:
       labels:
         app: hello
     spec:
+      volumes:
+        - name: nginx-conf
+          configMap:
+            name: hello-nginx
+            items:
+              - key: default.conf
+                path: default.conf
+        - name: nginx-templates
+          configMap:
+            name: hello-nginx
+            items:
+              - key: index.html.template
+                path: index.html.template
+        - name: shared
+          emptyDir: {}
+
       containers:
         - name: nginx
           image: nginx:1.27-alpine
@@ -100,27 +115,29 @@ spec:
             - name: nginx-templates
               mountPath: /etc/nginx/templates/index.html.template
               subPath: index.html.template
+            - name: shared
+              mountPath: /shared
 
-          # HPA-friendly: small but non-trivial request so scaling is visible.
+          # small app footprint
           resources:
             requests:
               # CPU is measured in millicores (m).
               # 1000m = 1 full vCPU core
               # 500m  = 0.5 vCPU (half a core)
-              # 250m  = 0.25 vCPU
-              cpu: "500m"
+              # 100m  = 0.1 vCPU
+              cpu: "100m"
               # Memory is measured in Mebibytes (Mi).
               # Mi uses base 2 (2^20 bytes).
               # 1 Mi = 1,048,576 bytes
               # 512Mi ≈ 0.5 GiB
-              memory: "128Mi"
+              memory: "64Mi"
             limits:
               # The maximum CPU the container is allowed to use.
               # If it tries to exceed this, it will be throttled.
-              cpu: "1000m"
+              cpu: "200m"
               # The maximum memory the container may use.
               # If it exceeds this, it will be OOM-killed.
-              memory: "256Mi"
+              memory: "128Mi"
 
           readinessProbe:
             httpGet:
@@ -136,19 +153,32 @@ spec:
             initialDelaySeconds: 5
             periodSeconds: 3
 
-      volumes:
-        - name: nginx-conf
-          configMap:
-            name: hello-nginx
-            items:
-              - key: default.conf
-                path: default.conf
-        - name: nginx-templates
-          configMap:
-            name: hello-nginx
-            items:
-              - key: index.html.template
-                path: index.html.template
+        - name: cpu-burn
+          image: busybox:1.36
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              echo "cpu-burn sidecar ready. toggle with: touch /shared/burn";
+              while true; do
+                if [ -f /shared/burn ]; then
+                  # Safe CPU burn: tight loop (no forks)
+                  while [ -f /shared/burn ]; do :; done
+                else
+                  sleep 1
+                fi
+              done
+          volumeMounts:
+            - name: shared
+              mountPath: /shared
+          # This is what makes HPA + CA visible/reliable:
+          # 1 vCPU requested per pod when scaled up
+          resources:
+            requests:
+              cpu: "1000m"
+              memory: "16Mi"
+            limits:
+              cpu: "1000m"
+              memory: "32Mi"
 ---
 apiVersion: v1
 kind: Service
@@ -163,3 +193,23 @@ spec:
       port: 80
       targetPort: 8080
   type: ClusterIP
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: hello-hpa
+  namespace: hands-on
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: hello
+  minReplicas: 1
+  maxReplicas: 12
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 50
