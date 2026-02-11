@@ -3,8 +3,76 @@ export PROJECT_ID=kubernetes-demo-486609
 export ZONE=europe-west3-a
 export CLUSTER_NAME=hands-on
 
+# 1. Check cluster 
+gcloud container node-pools describe default-pool \
+  --cluster "${CLUSTER_NAME}" \
+  --zone "${ZONE}" \
+  --project "${PROJECT_ID}" \
+  --format="value(autoscaling.enabled,autoscaling.minNodeCount,autoscaling.maxNodeCount)"
+
+# 2. Deploy
+kubectl apply -f 30-deploy-nginx-hpa.yaml
+kubectl rollout status -n hands-on deploy/hello  
+kubectl get pods -n hands-on -o wide  
+
+# 3. Browser Demo
+kubectl port-forward -n hands-on svc/hello 8080:80
+http://localhost:8080
+http://localhost:8080/whoami
+
+# 4. Echte LB-Demo (im Cluster)
+kubectl run -n hands-on busy --image=busybox:1.36 -it --rm -- \
+  sh -c 'for i in $(seq 1 20); do wget -q -O- http://hello/whoami; done'
+
+# 5. ConfigMap Injection
+kubectl exec -n hands-on <pod> -- sh -c 'echo $MY_MESSAGE'
+
+# 6. Readiness Probe Demo (Traffic stoppt)
+kubectl get endpoints -n hands-on hello -w
+
+# 6.1 Readiness kaputt machen:
+kubectl exec -n hands-on <pod> -- rm -f /tmp/ready
+
+# 6.2 Zeigen, dass kein Traffic mehr auf diesen Pod geht: siehe 4.
+
+# 6.3 Restore:
+kubectl exec -n hands-on <pod> -- touch /tmp/ready
+
+# 7. Liveness Probe Demo (Self-Healing)
+kubectl get pods -n hands-on -w
+# 7.1 Liveness kaputt machen:
+kubectl exec -n hands-on <pod> -- rm -f /tmp/healthy
+
+# 8. ReplicaSet Self-Heal
+kubectl delete pod -n hands-on <pod>
+kubectl get pods -n hands-on -w
+
+# 9. HPA hinzufügen
+kubectl apply -f 40-deploy-hpa.yaml
+kubectl get hpa -n hands-on -w
+kubectl describe hpa -n hands-on hello-hpa
+kubectl get pods -n hands-on -w
+kubectl get nodes -w
+
+
+  #9.1 Load erzeugen
+kubectl run -n hands-on fortio \
+  --image=fortio/fortio \
+  --restart=Never \
+  --command -- \
+  fortio load -qps 300 -c 20 -t 3m http://hello.hands-on.svc.cluster.local/whoami
+
+kubectl logs -n hands-on -f pod/fortio
+
+
+  # 9.2 Beobachten, wie die Pods hochskaliert werden
+  kubectl get pods -n hands-on -w
+kubectl describe hpa -n hands-on hello-hpa
+
+##########
+
 # 1. Deployen and config
-kubectl get pods -n hands-on -o wide
+
 kubectl get nodes --show-labels | grep gke-nodepool
 # show hello
 kubectl -n hands-on port-forward --address 0.0.0.0 svc/hello 8080:80
