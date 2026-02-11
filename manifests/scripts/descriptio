@@ -1,2 +1,0 @@
-This repository contains a hands-on Kubernetes workshop based on Google Kubernetes Engine (GKE Standard).
-It is designed for educational purposes and demonstrates core Kubernetes concepts such as resource requests and limits, probes, pod scaling, node scaling, and worker pools using simple, reproducible examples.
