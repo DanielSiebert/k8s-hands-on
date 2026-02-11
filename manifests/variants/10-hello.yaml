@@ -1,0 +1,79 @@
+# Namespace for the application
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: hands-on
+---
+# ConfigMap to store environment variables
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hello-config
+  namespace: hands-on
+data:
+  MY_MESSAGE: "Hello from ConfigMap 🚀"
+---
+# Deployment for the application
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hello
+  namespace: hands-on
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hello
+  template:
+    metadata:
+      labels:
+        app: hello
+    spec:
+      containers:
+        - name: hello
+          image: hashicorp/http-echo:1.0
+          args:
+            - "-listen=:5678"
+            - "-text=hello world"
+          env:
+            - name: MY_MESSAGE
+              valueFrom:
+                configMapKeyRef:
+                  name: hello-config
+                  key: MY_MESSAGE
+          ports:
+            - containerPort: 5678
+          resources:
+            requests:
+              # CPU is measured in millicores (m).
+              # 1000m = 1 full vCPU core
+              # 500m  = 0.5 vCPU (half a core)
+              # 250m  = 0.25 vCPU
+              cpu: "500m"
+              # Memory is measured in Mebibytes (Mi).
+              # Mi uses base 2 (2^20 bytes).
+              # 1 Mi = 1,048,576 bytes
+              # 512Mi ≈ 0.5 GiB
+              memory: "512Mi"
+            limits:
+              # The maximum CPU the container is allowed to use.
+              # If it tries to exceed this, it will be throttled.
+              cpu: "500m"
+              # The maximum memory the container may use.
+              # If it exceeds this, it will be OOM-killed.
+              memory: "512Mi"
+---
+# Service for the application
+apiVersion: v1
+kind: Service
+metadata:
+  name: hello
+  namespace: hands-on
+spec:
+  selector:
+    app: hello
+  ports:
+    - name: http
+      port: 80
+      targetPort: 5678
+  type: ClusterIP

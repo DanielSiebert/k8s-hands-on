@@ -4,9 +4,19 @@ export ZONE=europe-west1-b
 export CLUSTER_NAME=hands-on
 
 
+#useful
+kubectl -n hands-on rollout history deployment/hello
+kubectl -n hands-on delete deployment hello
+kubectl delete -f 10-hello.yaml
+
+
+
 # Nach 1
 kubectl get pods -n hands-on -o wide
 kubectl get nodes --show-labels | grep gke-nodepool
+kubectl -n hands-on port-forward --address 0.0.0.0 svc/hello 8080:80
+curl http://127.0.0.1:8080
+
 
 # Nach 2
 kubectl get pods -n hands-on -o wide
