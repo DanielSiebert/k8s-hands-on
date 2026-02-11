@@ -1,43 +1,61 @@
 #ENV VARS
 export PROJECT_ID=kubernetes-demo-486609
-export ZONE=europe-west1-b
+export ZONE=europe-west3-a
 export CLUSTER_NAME=hands-on
 
-
-#useful
-kubectl -n hands-on rollout history deployment/hello
-kubectl -n hands-on delete deployment hello
-kubectl delete -f 10-hello.yaml
-
-
-
-# Nach 1
+# 1. Deployen and config
 kubectl get pods -n hands-on -o wide
 kubectl get nodes --show-labels | grep gke-nodepool
+# show hello
 kubectl -n hands-on port-forward --address 0.0.0.0 svc/hello 8080:80
 curl http://127.0.0.1:8080
 
-
-# Nach 2
-kubectl get pods -n hands-on -o wide
-kubectl delete deploy -n hands-on demo-v1 demo-v2 --ignore-not-found
+# 2. NGINX
+kubectl port-forward -n hands-on svc/hello 8080:80
+open: http://localhost:8080
+# show configmap
 kubectl get pods -n hands-on
+kubectl exec -n hands-on -it <pod-name> -- sh -c 'echo $MY_MESSAGE'
+# show load balancing
+kubectl run -n hands-on curl \
+  --image=curlimages/curl:8.6.0 \
+  -it --rm -- \
+  sh -c 'for i in $(seq 1 20); do curl -s http://hello/ | grep Pod; done'
+#show probes
+  #Pick a pod:
+   kubectl get pods -n hands-on -o wide
+  #Break readiness on that pod:
+   kubectl exec -n hands-on <pod> -- rm -f /tmp/ready
+  #Observe it becomes NotReady:
+  kubectl get pods -n hands-on -w
+  #And watch endpoints drop that pod:
+  kubectl get endpoints -n hands-on hello -w
+  #Restore:   
+  kubectl exec -n hands-on <pod> -- touch /tmp/ready
+  
+  #Show liveness + self-healing (force restart)
+  #Break liveness:
+  kubectl exec -n hands-on <pod> -- rm -f /tmp/healthy
+  #Watch restart count increase:
+  kubectl get pods -n hands-on -w
 
-#Nach 3
-kubectl delete deploy -n hands-on demo-v3 --ignore-not-found
-kubectl apply -f manifests/variants/40-deploy-v4-nodepool-placement.yaml
+
+#Show ReplicaSet self-healing (pod recreation)
+kubectl delete pod -n hands-on <pod>
+kubectl get pods -n hands-on -w
+
+  
+
+
+
+
+#useful
+kubectl get nodes
 kubectl get pods -n hands-on -o wide
+kubectl describe pod -n hands-on <one-pending-pod>
 
-#Nach 4
-kubectl get --raw "/apis/metrics.k8s.io/v1beta1/nodes" | head
-
-kubectl apply -f manifests/variants/50-hpa.yaml
-kubectl get hpa -n hands-on
-
-#zu5
-kubectl run -n hands-on loadgen \
-  --image=busybox:1.36 \
-  --restart=Never -- \
-  sh -c 'while true; do wget -q -O- http://demo.hands-on.svc.cluster.local >/dev/null; done'
+kubectl -n hands-on rollout history deployment/hello
+kubectl -n hands-on delete deployment hello
+kubectl delete -f 10-hello.yaml
 
 
