@@ -203,7 +203,9 @@ spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: hello
+    name:
+      hello
+      # simplyfied: desiredReplicas = currentReplicas × (currentUtilization / targetUtilization)
   minReplicas: 1
   maxReplicas: 12
   metrics:
